@@ -756,7 +756,7 @@ export default function Timeline() {
   }
 
   return (
-    <div className="h-[calc(100vh-64px)] w-full overflow-hidden bg-slate-200 flex flex-col relative">
+    <div className="h-[calc(100vh-128px)] w-full overflow-hidden bg-slate-200 flex flex-col relative">
       {/* Top bar with filter button and results count */}
       <div className="bg-white shadow-sm z-40 flex-none flex items-center h-12">
         <div className="w-16 flex items-center justify-center">
