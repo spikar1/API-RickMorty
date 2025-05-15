@@ -14,6 +14,7 @@ interface Filters {
   origin: string;
   status: string;
   episodes: number[];
+  searchText: string;
 }
 
 interface Episode {
@@ -378,11 +379,22 @@ const FilterSidebar = ({
             </svg>
           </button>
         </div>
-      </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-4 space-y-6">
-          {/* Basic filters */}
+        {/* Search input */}
+        <div className="mt-4 mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Search Characters
+          </label>
+          <input
+            type="text"
+            value={filters.searchText}
+            onChange={(e) => onFilterChange('searchText', e.target.value)}
+            placeholder="Enter character name..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
           <div className="space-y-6">
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">Gender</label>
@@ -495,7 +507,8 @@ export default function Timeline() {
     species: '',
     origin: '',
     status: '',
-    episodes: []
+    episodes: [],
+    searchText: ''
   });
 
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
@@ -598,6 +611,15 @@ export default function Timeline() {
   useEffect(() => {
     let result = [...characters];
 
+    // Text search filter
+    if (filters.searchText) {
+      const searchTerm = filters.searchText.toLowerCase();
+      result = result.filter(char => 
+        char.name.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Other filters
     if (filters.gender) {
       result = result.filter(char => char.gender === filters.gender);
     }
