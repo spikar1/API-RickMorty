@@ -666,6 +666,9 @@ export default function Timeline() {
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!timelineRef.current) return;
+
+    // Only handle left mouse button
+    if (e.button !== 0) return;
     
     dragRef.current = {
       isDragging: true,
@@ -683,34 +686,50 @@ export default function Timeline() {
   const handleMouseMove = (e: React.MouseEvent) => {
     const drag = dragRef.current;
     if (!drag.isDragging || !timelineRef.current) return;
+
     e.preventDefault();
-
-    const dx = e.clientX - drag.lastX;
-    drag.velocity = dx * 0.5; // Reduced for smoother momentum
+    const deltaX = e.clientX - drag.lastX;
+    const now = performance.now();
+    const dt = now - drag.dragStartTime;
+    
+    if (dt > 0) {
+      drag.velocity = deltaX * 0.3; // Reduced velocity multiplier for smoother movement
+    }
+    
     drag.lastX = e.clientX;
+    drag.dragStartTime = now;
 
-    timelineRef.current.scrollLeft = drag.scrollLeft + (drag.startX - e.clientX);
+    const newScrollLeft = drag.scrollLeft + (drag.startX - e.clientX);
+    timelineRef.current.scrollLeft = newScrollLeft;
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: React.MouseEvent) => {
     if (!timelineRef.current) return;
     const drag = dragRef.current;
+    
+    // Only apply momentum if it's a quick release and there's significant velocity
+    const isQuickRelease = performance.now() - drag.dragStartTime < 100;
+    
     drag.isDragging = false;
-
     timelineRef.current.style.cursor = 'grab';
     timelineRef.current.style.userSelect = 'auto';
 
-    if (Math.abs(drag.velocity) > 0.1) {
+    if (isQuickRelease && Math.abs(drag.velocity) > 1) {
       let velocity = drag.velocity;
       let lastTimestamp = performance.now();
+      let frame = 0;
 
       const animate = (timestamp: number) => {
+        if (!timelineRef.current) return;
+        
         const delta = timestamp - lastTimestamp;
         lastTimestamp = timestamp;
+        frame++;
 
-        if (Math.abs(velocity) > 0.1 && timelineRef.current) {
-          timelineRef.current.scrollLeft -= velocity * delta * 0.3;
-          velocity *= 0.95;
+        // Apply velocity with decay
+        if (Math.abs(velocity) > 0.1 && frame < 60) { // Limit animation to 60 frames
+          timelineRef.current.scrollLeft -= velocity * (delta * 0.2);
+          velocity *= 0.95; // Smoother decay
           requestAnimationFrame(animate);
         }
       };
@@ -721,7 +740,23 @@ export default function Timeline() {
 
   const handleMouseLeave = () => {
     if (dragRef.current.isDragging) {
-      handleMouseUp();
+      dragRef.current.isDragging = false;
+      if (timelineRef.current) {
+        timelineRef.current.style.cursor = 'grab';
+        timelineRef.current.style.userSelect = 'auto';
+      }
+    }
+  };
+
+  // Add click handler to prevent unwanted clicks during drag
+  const handleClick = (e: React.MouseEvent) => {
+    const drag = dragRef.current;
+    const moveDistance = Math.abs(e.clientX - drag.startX);
+    
+    // If the mouse has moved more than 5px, prevent the click
+    if (moveDistance > 5) {
+      e.preventDefault();
+      e.stopPropagation();
     }
   };
 
@@ -756,7 +791,7 @@ export default function Timeline() {
   }
 
   return (
-    <div className="h-[calc(100vh-128px)] w-full overflow-hidden bg-slate-200 flex flex-col relative">
+    <div className="h-[calc(100vh-104px)] w-full overflow-hidden bg-slate-200 flex flex-col relative">
       {/* Top bar with filter button and results count */}
       <div className="bg-white shadow-sm z-40 flex-none flex items-center h-12">
         <div className="w-16 flex items-center justify-center">
@@ -796,6 +831,7 @@ export default function Timeline() {
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
         style={{
           WebkitOverflowScrolling: 'touch',
           height: 'calc(100% - 40px)',
