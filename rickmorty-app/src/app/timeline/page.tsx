@@ -17,10 +17,14 @@ interface Filters {
 }
 
 interface Episode {
-  id: number;
+  id: string;
   name: string;
+  air_date: string;
   episode: string;
-  season: number;
+  characters: string[];
+  url: string;
+  created: string;
+  season?: number;
 }
 
 interface FilterOptions {
@@ -46,7 +50,10 @@ const CharacterItem = memo(({
   isSelected, 
   onSelect,
   filters,
-  onFilterChange 
+  onFilterChange,
+  onViewEpisodes,
+  showEpisodes,
+  episodes
 }: { 
   character: TimelineCharacter;
   index: number;
@@ -54,10 +61,17 @@ const CharacterItem = memo(({
   onSelect: (id: number) => void;
   filters: Filters;
   onFilterChange: (type: keyof Filters, value: string) => void;
+  onViewEpisodes: (character: TimelineCharacter) => void;
+  showEpisodes: boolean;
+  episodes: Episode[];
 }) => {
   const handleClick = (e: React.MouseEvent) => {
     onSelect(character.id);
   };
+
+  const characterEpisodes = episodes.filter(ep => 
+    character.episodeIds.includes(parseInt(ep.id))
+  );
 
   return (
     <div className="relative flex flex-col items-center">
@@ -70,78 +84,134 @@ const CharacterItem = memo(({
         }`}
       >
         {/* Info box */}
-        <div 
-          className={`absolute ${
-            index % 2 === 0 ? 'bottom-full mb-2' : 'top-full mt-2'
-          } left-1/2 transform -translate-x-1/2 rounded-lg overflow-hidden transition-all duration-300 ease-in-out ${
-            isSelected 
-              ? 'max-h-[400px] w-[32rem] opacity-100 shadow-2xl bg-white' 
-              : 'max-h-8 w-48 opacity-90 shadow-lg hover:shadow-xl bg-slate-100'
-          }`}
-          style={{
-            minHeight: '2rem',
-            zIndex: isSelected ? 50 : 20
-          }}
-        >
-          {/* Name always visible */}
-          <div className={`p-2 text-center font-medium transition-colors duration-300 ${
-            isSelected 
-              ? 'text-gray-700 bg-white' 
-              : 'text-gray-600 bg-slate-100'
-          }`}>
-            {character.name}
+        <div className="relative flex">
+          <div 
+            className={`absolute ${
+              index % 2 === 0 ? 'bottom-full mb-4' : 'top-full mt-16'
+            } left-1/2 transform -translate-x-1/2 rounded-lg transition-all duration-300 ease-in-out ${
+              isSelected 
+                ? 'w-[32rem] opacity-100 shadow-2xl bg-white' 
+                : 'w-48 opacity-90 shadow-lg hover:shadow-xl bg-slate-100'
+            }`}
+            style={{
+              zIndex: isSelected ? 50 : 20,
+              maxHeight: isSelected ? 'calc(100vh - 180px)' : 'none'
+            }}
+          >
+            {/* Name always visible */}
+            <div className={`p-2 text-center font-medium transition-colors duration-300 border-b min-h-[2rem] ${
+              isSelected 
+                ? 'text-gray-700 bg-white' 
+                : 'text-gray-600 bg-slate-100'
+            }`}>
+              {character.name}
+            </div>
+
+            {/* Additional info that appears when expanded */}
+            <div className={`transition-all duration-300 overflow-y-auto ${
+              isSelected ? 'opacity-100' : 'opacity-0 max-h-0'
+            }`}
+            style={{
+              maxHeight: isSelected ? 'calc(100vh - 220px)' : '0'
+            }}>
+              <div className="p-4">
+                {/* Character portrait */}
+                <div className="flex">
+                  <div className="flex-shrink-0 w-48 h-48 rounded-lg overflow-hidden border-2 border-gray-200">
+                    <img
+                      src={character.image}
+                      alt={character.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {/* Info content */}
+                  <div className="ml-4 flex-grow space-y-3">
+                    <p className="text-sm text-gray-600">
+                      Created: {character.createdDate.toLocaleDateString()}
+                    </p>
+                    <FilterableValue 
+                      label="Status" 
+                      value={character.status} 
+                      filterType="status"
+                      currentFilter={filters.status}
+                      onFilterChange={onFilterChange}
+                    />
+                    <FilterableValue 
+                      label="Species" 
+                      value={character.species} 
+                      filterType="species"
+                      currentFilter={filters.species}
+                      onFilterChange={onFilterChange}
+                    />
+                    <FilterableValue 
+                      label="Gender" 
+                      value={character.gender} 
+                      filterType="gender"
+                      currentFilter={filters.gender}
+                      onFilterChange={onFilterChange}
+                    />
+                    <FilterableValue 
+                      label="Origin" 
+                      value={character.origin.name} 
+                      filterType="origin"
+                      currentFilter={filters.origin}
+                      onFilterChange={onFilterChange}
+                    />
+                    <p className="text-sm text-gray-600">
+                      Location: {character.location.name}
+                    </p>
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm text-gray-600">
+                        Episodes: {character.episodeIds.length}
+                      </p>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewEpisodes(character);
+                        }}
+                        className="text-sm px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                      >
+                        {showEpisodes ? 'Hide Episodes' : 'View Episodes'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Additional info that appears when expanded */}
-          <div className={`transition-opacity duration-300 ${
-            isSelected ? 'opacity-100' : 'opacity-0'
-          }`}>
-            <div className="flex p-4">
-              {/* Character portrait */}
-              <div className="flex-shrink-0 w-48 h-48 rounded-lg overflow-hidden border-2 border-gray-200">
-                <img
-                  src={character.image}
-                  alt={character.name}
-                  className="w-full h-full object-cover"
-                />
+          {/* Episodes box */}
+          <div 
+            className={`absolute ${
+              index % 2 === 0 ? 'bottom-full mb-16' : 'top-full mt-16'
+            } left-1/2 ml-[16rem] transform transition-all duration-300 ease-in-out ${
+              isSelected && showEpisodes
+                ? 'translate-x-0 opacity-100'
+                : 'translate-x-[-50px] opacity-0 pointer-events-none'
+            }`}
+            style={{
+              zIndex: isSelected ? 49 : 19,
+              width: '16rem',
+              maxHeight: 'calc(100vh - 180px)'
+            }}
+          >
+            <div className={`bg-white rounded-lg shadow-xl flex flex-col ${
+              isSelected && showEpisodes ? 'opacity-100 visible' : 'opacity-0 invisible'
+            }`}>
+              <div className="p-4 border-b border-gray-200">
+                <h3 className="font-medium text-lg">Episodes ({characterEpisodes.length})</h3>
               </div>
-
-              {/* Info content */}
-              <div className="ml-4 flex-grow space-y-3">
-                <p className="text-sm text-gray-600">
-                  Created: {character.createdDate.toLocaleDateString()}
-                </p>
-                <FilterableValue 
-                  label="Status" 
-                  value={character.status} 
-                  filterType="status"
-                  currentFilter={filters.status}
-                  onFilterChange={onFilterChange}
-                />
-                <FilterableValue 
-                  label="Species" 
-                  value={character.species} 
-                  filterType="species"
-                  currentFilter={filters.species}
-                  onFilterChange={onFilterChange}
-                />
-                <FilterableValue 
-                  label="Gender" 
-                  value={character.gender} 
-                  filterType="gender"
-                  currentFilter={filters.gender}
-                  onFilterChange={onFilterChange}
-                />
-                <FilterableValue 
-                  label="Origin" 
-                  value={character.origin.name} 
-                  filterType="origin"
-                  currentFilter={filters.origin}
-                  onFilterChange={onFilterChange}
-                />
-                <p className="text-sm text-gray-600">
-                  Location: {character.location.name}
-                </p>
+              <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 240px)' }}>
+                <div className="p-4 space-y-2">
+                  {characterEpisodes.map((episode) => (
+                    <div key={episode.id} className="p-3 bg-gray-50 rounded-lg">
+                      <h4 className="font-medium text-sm">{episode.name}</h4>
+                      <p className="text-gray-600 text-xs">{episode.episode}</p>
+                      <p className="text-gray-600 text-xs">Air date: {episode.air_date}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -202,13 +272,16 @@ const groupEpisodesBySeason = (episodes: Episode[]) => {
   
   episodes.forEach(episode => {
     const seasonMatch = episode.episode.match(/S(\d+)E/);
-    const season = seasonMatch ? parseInt(seasonMatch[1]) : 0;
-    episode.season = season;
+    const seasonNumber = seasonMatch ? parseInt(seasonMatch[1]) : 0;
     
-    if (!seasons.has(season)) {
-      seasons.set(season, []);
+    if (!seasons.has(seasonNumber)) {
+      seasons.set(seasonNumber, []);
     }
-    seasons.get(season)?.push(episode);
+    const seasonEpisodes = seasons.get(seasonNumber);
+    if (seasonEpisodes) {
+      episode.season = seasonNumber;
+      seasonEpisodes.push(episode);
+    }
   });
   
   return new Map([...seasons.entries()].sort((a, b) => a[0] - b[0]));
@@ -226,7 +299,7 @@ const SeasonAccordion = memo(({
   onEpisodeToggle: (episodeId: number) => void;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const selectedInSeason = episodes.filter(ep => selectedEpisodes.includes(ep.id)).length;
+  const selectedInSeason = episodes.filter(ep => selectedEpisodes.includes(parseInt(ep.id))).length;
 
   return (
     <div className="border-b last:border-b-0">
@@ -259,11 +332,11 @@ const SeasonAccordion = memo(({
             <div 
               key={episode.id}
               className="flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer"
-              onClick={() => onEpisodeToggle(episode.id)}
+              onClick={() => onEpisodeToggle(parseInt(episode.id))}
             >
               <input
                 type="checkbox"
-                checked={selectedEpisodes.includes(episode.id)}
+                checked={selectedEpisodes.includes(parseInt(episode.id))}
                 onChange={() => {}}
                 className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
               />
@@ -441,6 +514,9 @@ export default function Timeline() {
     velocity: 0,
     dragStartTime: 0
   });
+
+  const [selectedCharacterForEpisodes, setSelectedCharacterForEpisodes] = useState<TimelineCharacter | null>(null);
+  const [showEpisodes, setShowEpisodes] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchEpisodes = async () => {
@@ -649,6 +725,16 @@ export default function Timeline() {
     }
   };
 
+  const handleViewEpisodes = (character: TimelineCharacter) => {
+    if (selectedCharacterForEpisodes?.id === character.id) {
+      setSelectedCharacterForEpisodes(null);
+      setShowEpisodes(false);
+    } else {
+      setSelectedCharacterForEpisodes(character);
+      setShowEpisodes(true);
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gray-100">
@@ -722,7 +808,9 @@ export default function Timeline() {
           style={{
             minWidth: 'max-content',
             paddingLeft: '2.5rem',
-            paddingRight: '2.5rem'
+            paddingRight: '2.5rem',
+            paddingTop: '6rem',
+            paddingBottom: '6rem'
           }}
         >
           {/* Main horizontal line */}
@@ -739,6 +827,9 @@ export default function Timeline() {
                 onSelect={handleCharacterSelect}
                 filters={filters}
                 onFilterChange={handleFilterChange}
+                onViewEpisodes={handleViewEpisodes}
+                showEpisodes={showEpisodes && selectedCharacterForEpisodes?.id === character.id}
+                episodes={episodes}
               />
             ))}
           </div>

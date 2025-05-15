@@ -8,6 +8,8 @@ export default function Search() {
   const [character, setCharacter] = useState<Character | null>(null);
   const [suggestions, setSuggestions] = useState<Character[]>([]);
   const [error, setError] = useState('');
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [showEpisodes, setShowEpisodes] = useState(false);
 
   const debouncedSearch = useCallback(
     debounce(async (query: string) => {
@@ -35,6 +37,35 @@ export default function Search() {
   useEffect(() => {
     debouncedSearch(searchQuery);
   }, [searchQuery, debouncedSearch]);
+
+  useEffect(() => {
+    const fetchEpisodes = async () => {
+      try {
+        let allEpisodes: Episode[] = [];
+        let page = 1;
+        let hasMore = true;
+
+        while (hasMore) {
+          const response = await fetch(`https://rickandmortyapi.com/api/episode/?page=${page}`);
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to fetch episodes');
+          }
+
+          allEpisodes = [...allEpisodes, ...data.results];
+          hasMore = data.info.next !== null;
+          page++;
+        }
+
+        setEpisodes(allEpisodes);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch episodes');
+      }
+    };
+
+    fetchEpisodes();
+  }, []);
 
   const selectCharacter = (selectedCharacter: Character) => {
     setCharacter(selectedCharacter);
@@ -128,13 +159,61 @@ export default function Search() {
                         <td className="py-3 text-sm text-gray-600 font-medium">Location</td>
                         <td className="py-3 font-semibold">{character.location.name}</td>
                       </tr>
-                      <tr>
+                      <tr className="border-b border-gray-200">
                         <td className="py-3 text-sm text-gray-600 font-medium">Type</td>
                         <td className="py-3 font-semibold">{character.type || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <td className="py-3 text-sm text-gray-600 font-medium">Episodes</td>
+                        <td className="py-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold">{character.episode.length}</span>
+                            <button
+                              onClick={() => setShowEpisodes(true)}
+                              className="text-sm px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                            >
+                              View Episodes
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Episode Panel */}
+          {character && (
+            <div 
+              className={`fixed right-0 top-0 h-full w-96 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
+                showEpisodes ? 'translate-x-0' : 'translate-x-full'
+              } z-50`}
+            >
+              <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-xl font-semibold">
+                  {character.name}'s Episodes ({character.episode.length})
+                </h2>
+                <button
+                  onClick={() => setShowEpisodes(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto h-[calc(100%-64px)]">
+                {episodes
+                  .filter(ep => character.episode.includes(ep.url))
+                  .map((episode) => (
+                    <div key={episode.id} className="mb-4 p-4 bg-gray-50 rounded-lg">
+                      <h3 className="font-medium text-lg">{episode.name}</h3>
+                      <p className="text-gray-600 text-sm">{episode.episode}</p>
+                      <p className="text-gray-600 text-sm">Air date: {episode.air_date}</p>
+                    </div>
+                  ))}
               </div>
             </div>
           )}
@@ -160,4 +239,14 @@ function debounce<T extends (...args: any[]) => any>(
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
+}
+
+interface Episode {
+  id: string;
+  name: string;
+  air_date: string;
+  episode: string;
+  characters: string[];
+  url: string;
+  created: string;
 } 
